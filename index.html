@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebGIS Kelurahan Geluran, Kecamatan Taman, Kabupaten Sidoarjo</title>
+  <meta name="description"
+    content="Aplikasi WebGIS interaktif Kelurahan Geluran, Kecamatan Taman, Kabupaten Sidoarjo. Menampilkan batas administrasi resmi, jaringan jalan nyata & sungai yang ter-clip khusus wilayah Geluran, serta 37 titik fasilitas umum terverifikasi.">
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <style>
+    /* Reset & Variabel Tema Modern */
+    :root {
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --accent: #38bdf8;
+      --dark-text: #0f172a;
+      --muted-text: #475569;
+      --light-text: #94a3b8;
+      --bg-glass: rgba(255, 255, 255, 0.92);
+      --bg-glass-card: rgba(255, 255, 255, 0.97);
+      --border-glass: rgba(226, 232, 240, 0.85);
+      --shadow-soft: 0 10px 25px -5px rgba(15, 23, 42, 0.18), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+      --radius-lg: 16px;
+      --radius-md: 10px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body,
+    html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: var(--dark-text);
+      background-color: #0f172a;
+    }
+
+    /* Peta Leaflet Full Screen */
+    #map {
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* Floating Header Nav (Kiri Atas) */
+    .header-panel {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      z-index: 1000;
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: 14px 18px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-glass);
+      box-shadow: var(--shadow-soft);
+      width: 400px;
+      max-width: calc(100vw - 40px);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.3s ease;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      color: white;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .header-panel h1 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--dark-text);
+      line-height: 1.3;
+    }
+
+    .header-panel p {
+      font-size: 11.5px;
+      color: var(--muted-text);
+      line-height: 1.45;
+    }
+
+    /* Filter Pill / Fasum Quick Filter */
+    .fasum-filter-bar {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+      padding-top: 6px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .filter-pill {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      background: #f1f5f9;
+      color: var(--muted-text);
+      border: 1px solid #cbd5e1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .filter-pill:hover,
+    .filter-pill.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+
+    /* ==========================================================================
+       PANEL LEGENDA DI SEBELAH KIRI (DI BAWAH HEADER PANEL, TIDAK NUMPUK)
+       ========================================================================== */
+    .legend-panel {
+      position: absolute;
+      top: 260px;
+      left: 20px;
+      z-index: 1000;
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      width: 350px;
+      max-height: calc(100vh - 350px);
+      overflow-y: auto;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .legend-header {
+      padding: 10px 14px;
+      background: rgba(241, 245, 249, 0.90);
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .legend-title-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--dark-text);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .legend-toggle-btn {
+      font-size: 11px;
+      color: var(--muted-text);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .legend-content {
+      padding: 10px 14px;
+      max-height: calc(100vh - 350px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .legend-section-title {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 3px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 11.5px;
+      color: var(--dark-text);
+      font-weight: 500;
+    }
+
+    .legend-color-box {
+      width: 17px;
+      height: 17px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .legend-line-box {
+      width: 20px;
+      height: 0px;
+      flex-shrink: 0;
+    }
+
+    .legend-icon-badge {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .legend-code-badge {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: #f1f5f9;
+      color: #64748b;
+      margin-left: auto;
+    }
+
+    .legend-footer {
+      padding: 6px 14px 8px;
+      font-size: 9.5px;
+      color: #64748b;
+      border-top: 1px solid #f1f5f9;
+      line-height: 1.3;
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Label Permanen Batas RT/RW di Atas Poligon */
+    .rt-rw-label {
+      background: rgba(255, 255, 255, 0.88) !important;
+      backdrop-filter: blur(6px) !important;
+      border: 1px solid rgba(15, 23, 42, 0.25) !important;
+      border-radius: 6px !important;
+      color: #0f172a !important;
+      font-family: 'Plus Jakarta Sans', sans-serif !important;
+      font-weight: 800 !important;
+      font-size: 10px !important;
+      padding: 2px 6px !important;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18) !important;
+      pointer-events: none !important;
+      white-space: nowrap !important;
+      text-align: center !important;
+    }
+
+    .rt-rw-label::before {
+      display: none !important;
+    }
+
+    /* Custom Fasum Leaflet Marker Icons */
+    .fasum-div-icon {
+      background: transparent;
+      border: none;
+    }
+
+    .fasum-pin {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
+      border: 2px solid #ffffff;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .fasum-pin:hover {
+      transform: scale(1.3) translateY(-4px);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.45);
+    }
+
+
+
+    /* Live Coordinates Tracker Bar */
+    .coord-bar {
+      position: absolute;
+      bottom: 5px;
+      left: 20px;
+      z-index: 1000;
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 8px 16px;
+      border-radius: 9999px;
+      border: 1px solid var(--border-glass);
+      box-shadow: var(--shadow-soft);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted-text);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .coord-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .coord-val {
+      color: var(--dark-text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Styling Leaflet Controls di Kanan Atas Bebas Rapi */
+    .leaflet-control-layers {
+      background: var(--bg-glass) !important;
+      backdrop-filter: blur(16px) !important;
+      -webkit-backdrop-filter: blur(16px) !important;
+      border: 1px solid var(--border-glass) !important;
+      border-radius: var(--radius-md) !important;
+      box-shadow: var(--shadow-soft) !important;
+      font-family: inherit !important;
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      padding: 10px 14px !important;
+      color: var(--dark-text) !important;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+
+    .leaflet-control-layers-base label,
+    .leaflet-control-layers-overlays label {
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .leaflet-bar {
+      border: none !important;
+      box-shadow: var(--shadow-soft) !important;
+      border-radius: var(--radius-md) !important;
+      overflow: hidden;
+    }
+
+    .leaflet-bar a {
+      background-color: #ffffff !important;
+      color: var(--dark-text) !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+      transition: background-color 0.2s;
+    }
+
+    .leaflet-bar a:hover {
+      background-color: #f1f5f9 !important;
+      color: var(--primary) !important;
+    }
+
+    .leaflet-control-scale {
+      margin-left: 20px !important;
+      margin-bottom: 68px !important;
+    }
+
+    .leaflet-control-scale-line {
+      background: rgba(255, 255, 255, 0.85) !important;
+      border: 2px solid #0f172a !important;
+      border-top: none !important;
+      font-family: inherit !important;
+      font-weight: 700 !important;
+      font-size: 10px !important;
+      color: #0f172a !important;
+    }
+
+    /* ==========================================================================
+       KOMPAS / ARAH MATA ANGIN (STYLE & INTERAKSI)
+       ========================================================================== */
+    .compass-control-wrap {
+      margin-top: 10px !important;
+      margin-right: 10px !important;
+    }
+
+    .compass-widget {
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-soft);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.25s ease;
+      user-select: none;
+    }
+
+    .compass-widget.is-rotated {
+      border-color: #38bdf8;
+      box-shadow: 0 4px 16px rgba(56, 189, 248, 0.3);
+    }
+
+    .compass-dial {
+      width: 60px;
+      height: 60px;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .compass-dial:hover {
+      transform: scale(1.08);
+    }
+
+    .compass-dial:active {
+      transform: scale(0.96);
+    }
+
+    .compass-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.18));
+    }
+
+    .compass-ring-outer {
+      fill: #ffffff;
+      stroke: #cbd5e1;
+      stroke-width: 1.5;
+    }
+
+    .compass-ring-inner {
+      fill: none;
+      stroke: #e2e8f0;
+      stroke-width: 1;
+      stroke-dasharray: 2, 4;
+    }
+
+    .compass-text {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 9px;
+      font-weight: 800;
+      fill: #64748b;
+      text-anchor: middle;
+    }
+
+    .compass-text-u {
+      fill: #dc2626;
+      font-weight: 900;
+      font-size: 11px;
+    }
+
+    .compass-needle-group {
+      transform-origin: 50px 50px;
+      transform-box: view-box;
+      transition: transform 0.1s cubic-bezier(0.2, 0, 0.2, 1);
+    }
+
+    .compass-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 9999px;
+      padding: 2px 4px;
+    }
+
+    .compass-rot-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: none;
+      background: #ffffff;
+      color: var(--dark-text);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      transition: all 0.15s ease;
+    }
+
+    .compass-rot-btn:hover {
+      background: var(--primary);
+      color: #ffffff;
+      transform: scale(1.15);
+    }
+
+    .compass-heading-badge {
+      font-size: 9.5px;
+      font-weight: 800;
+      color: var(--dark-text);
+      font-variant-numeric: tabular-nums;
+      padding: 0 4px;
+      cursor: pointer;
+      min-width: 32px;
+      text-align: center;
+      border-radius: 4px;
+      transition: background 0.15s ease;
+    }
+
+    .compass-heading-badge:hover {
+      background: #e2e8f0;
+      color: var(--primary);
+    }
+
+    /* Custom Popup Card Modern */
+    .custom-popup .leaflet-popup-content-wrapper {
+      background: var(--bg-glass-card);
+      border-radius: 14px;
+      box-shadow: 0 20px 30px -10px rgba(15, 23, 42, 0.3);
+      padding: 2px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      border: 1px solid var(--border-glass);
+    }
+
+    .custom-popup .leaflet-popup-content {
+      margin: 12px 14px;
+      line-height: 1.45;
+      min-width: 250px;
+      max-width: 320px;
+    }
+
+    .popup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .popup-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .badge-red {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .badge-yellow {
+      background: #fef9c3;
+      color: #ca8a04;
+    }
+
+    .badge-orange {
+      background: #ffedd5;
+      color: #ea580c;
+    }
+
+    .badge-slate {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .badge-purple {
+      background: #f3e8ff;
+      color: #7e22ce;
+    }
+
+    .badge-green {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .badge-lime {
+      background: #ecfccb;
+      color: #4d7c0f;
+    }
+
+    .badge-blue {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .popup-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--dark-text);
+      margin-bottom: 2px;
+    }
+
+    .popup-subtitle {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+
+    .popup-desc {
+      font-size: 12px;
+      color: var(--muted-text);
+      margin-bottom: 10px;
+    }
+
+    .popup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: #f8fafc;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 8px;
+    }
+
+    .popup-grid-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .grid-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+
+    .grid-value {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--dark-text);
+    }
+
+    .popup-footer-note {
+      font-size: 10px;
+      color: #94a3b8;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .custom-tooltip {
+      background: rgba(15, 23, 42, 0.92) !important;
+      color: #ffffff !important;
+      border: none !important;
+      border-radius: 6px !important;
+      font-family: inherit !important;
+      font-size: 11px !important;
+      font-weight: 600 !important;
+      padding: 4px 8px !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    .custom-tooltip::before {
+      border-top-color: rgba(15, 23, 42, 0.92) !important;
+    }
+
+    /* Responsive untuk Layar Kecil */
+    @media (max-width: 820px) {
+      .header-panel {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        width: auto;
+      }
+
+      .legend-panel {
+        top: auto;
+        bottom: 24px;
+        left: 10px;
+        width: 260px;
+      }
+
+      .coord-bar {
+        display: none;
+      }
+
+      .leaflet-control-scale {
+        margin-bottom: 24px !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Floating Header / Informasi (Kiri Atas) -->
+  <header class="header-panel" id="headerPanel">
+    <div class="brand-title">
+      <span class="brand-badge">WebGIS</span>
+      <h1>Kelurahan Geluran, Kecamatan Taman, Kabupaten Sidoarjo</h1>
+    </div>
+    <p>Kelurahan Geluran berada di Kecamatan Taman, Kabupaten Sidoarjo, mencakup wilayah seluas 1,42 km² yang terbagi ke
+      dalam 7 RW dan 45 RT. Sebagai kawasan permukiman dan niaga strategis di perbatasan koridor Surabaya–Sidoarjo,
+      kelurahan ini dihuni oleh sekitar 16.480 jiwa dengan pusat pelayanan pemerintahan terpadu di Kantor Kelurahan
+      Geluran.</p>
+
+    <!-- Quick Filter Fasum -->
+    <div class="fasum-filter-bar">
+      <button class="filter-pill active" onclick="filterFasum('semua')">Semua Fasum (37)</button>
+      <button class="filter-pill" onclick="filterFasum('Pendidikan')">🏫 Pendidikan (8)</button>
+      <button class="filter-pill" onclick="filterFasum('Restoran')">🍽️ Restoran (13)</button>
+      <button class="filter-pill" onclick="filterFasum('Tempat Ibadah')">🕌 Ibadah (8)</button>
+      <button class="filter-pill" onclick="filterFasum('Fasum Lain')">🏢 Fasum Lain (8)</button>
+    </div>
+  </header>
+
+  <!-- Panel Legenda Geospasial (Ditempatkan di Kiri Bawah Header, Tidak Numpuk dengan Layer Kanan) -->
+  <div class="legend-panel" id="legendPanel">
+    <div class="legend-header" onclick="toggleLegend()">
+      <div class="legend-title-box">
+        <span>🗺️</span>
+        <span class="legend-title">Legenda</span>
+      </div>
+      <button class="legend-toggle-btn" id="legendToggleBtn" aria-label="Toggle Legenda">▼</button>
+    </div>
+
+    <div class="legend-content" id="legendContent">
+      <!-- 1. BATAS ADMINISTRASI (PERKA BIG NO. 5) -->
+      <div class="legend-section-title">📍 Batas Administrasi (PerKa BIG)</div>
+      <div class="legend-item">
+        <div
+          style="width: 28px; height: 10px; background: #FFFF00; border-radius: 2px; display: flex; align-items: center; justify-content: center; position: relative; border: 1px solid rgba(0,0,0,0.25); flex-shrink: 0;">
+          <div style="width: 100%; border-top: 2px dashed #000000;"></div>
+        </div>
+        <span>Batas Kelurahan / Desa</span>
+        <span class="legend-code-badge" style="background: #fef08a; color: #854d0e;">Mask Kuning</span>
+      </div>
+
+      <!-- 2. JARINGAN JALAN (PERKA BIG STANDAR SIMBOL) -->
+      <div class="legend-section-title">🛣️ Jaringan Jalan (PerKa BIG)</div>
+      <div class="legend-item">
+        <div
+          style="width: 24px; height: 8px; background: #FFB3D9; border: 1.5px solid #000000; border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); flex-shrink: 0;">
+        </div>
+        <span>Jalan Kolektor / Utama</span>
+        <span class="legend-code-badge" style="background: #fce7f3; color: #9d174d;">JL0300</span>
+      </div>
+      <div class="legend-item">
+        <div
+          style="width: 24px; height: 7px; background: #FF8766; border: 1.3px solid #000000; border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); flex-shrink: 0;">
+        </div>
+        <span>Jalan Lokal</span>
+        <span class="legend-code-badge" style="background: #ffedd5; color: #c2410c;">JL0400</span>
+      </div>
+      <div class="legend-item">
+        <div
+          style="width: 24px; height: 6px; background: #FFAD66; border: 1.2px solid #000000; border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); flex-shrink: 0;">
+        </div>
+        <span>Jalan Lain / Lingkungan</span>
+        <span class="legend-code-badge" style="background: #fed7aa; color: #9a3412;">JL0500</span>
+      </div>
+
+      <!-- 3. PERAIRAN -->
+      <div class="legend-section-title">🌊 Perairan & Sungai</div>
+      <div class="legend-item">
+        <span class="legend-line-box" style="border-top: 3.5px solid #0284C7;"></span>
+        <span>Sungai Utama</span>
+        <span class="legend-code-badge">HY0100</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-line-box" style="border-top: 2.5px dashed #38BDF8;"></span>
+        <span>Saluran Irigasi / Drainase</span>
+        <span class="legend-code-badge">HY0200</span>
+      </div>
+
+      <!-- 4. FASILITAS UMUM (FASUM) -->
+      <div class="legend-section-title">📍 Fasilitas Umum Terverifikasi (37 Titik)</div>
+      <div class="legend-item">
+        <span class="legend-icon-badge" style="background: #2563EB;">🏫</span>
+        <span>Pendidikan (8 Titik: SD, MI, MA, Ponpes, TPQ)</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-icon-badge" style="background: #EA580C;">🍽️</span>
+        <span>Restoran & Kuliner (13 Titik: Fast Food, Kopi, dsb)</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-icon-badge" style="background: #16A34A;">🕌</span>
+        <span>Tempat Ibadah (8 Titik: Masjid & Langgar)</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-icon-badge" style="background: #0284C7;">🏢</span>
+        <span>Fasum Lain (8 Titik: Balai/Kantor, Toko, Sarana)</span>
+      </div>
+    </div>
+
+    <div class="legend-footer" id="legendFooter">
+      Sumber: Standar Simbol PerKa BIG & Pemkab Sidoarjo<br>
+      <span style="color: #0284c7; font-weight: 600; font-size: 8.8px; display: inline-block; margin-top: 3px;">🧭
+        Rotasi Peta: Klik Kanan + Geser / Tombol Kompas</span>
+    </div>
+  </div>
+
+  <!-- Kontainer Peta -->
+  <div id="map"></div>
+
+  <!-- Indikator Koordinat Kursor Realtime (Kiri Bawah) -->
+  <div class="coord-bar" id="coordBar">
+    <div class="coord-item">
+      <span>Lat:</span>
+      <span class="coord-val" id="latVal">-7.3645</span>
+    </div>
+    <div class="coord-item">
+      <span>Lng:</span>
+      <span class="coord-val" id="lngVal">112.6935</span>
+    </div>
+    <div class="coord-item">
+      <span>Zoom:</span>
+      <span class="coord-val" id="zoomVal">15</span>
+    </div>
+    <div class="coord-item">
+      <span>Arah:</span>
+      <span class="coord-val" id="bearingVal">0° (U)</span>
+    </div>
+  </div>
+
+  <!-- Leaflet JavaScript Library -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Leaflet Rotate Plugin (Dukungan Rotasi 360° Peta & Gestur Mouse/Sentuh) -->
+  <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+
+  <!-- Data Geospasial Desa Geluran -->
+  <script src="data-geluran.js"></script>
+  <!-- Data Geometri Jaringan Jalan Nyata & Sungai dari OSM / INA-Geoportal Alignment -->
+  <script src="data-geluran-roads.js"></script>
+
+  <script>
+    /* ==========================================================================
+       1. Inisialisasi Peta Leaflet Berpusat di Desa Geluran, Sidoarjo (Dukungan Rotasi 360°)
+       ========================================================================== */
+    const GELURAN_CENTER = [-7.3645, 112.6935];
+    const GELURAN_ZOOM = 15;
+
+    const map = L.map('map', {
+      center: GELURAN_CENTER,
+      zoom: GELURAN_ZOOM,
+      zoomControl: true,
+      minZoom: 3,
+      maxZoom: 19,
+      rotate: true,
+      bearing: 0,
+      touchRotate: true,
+      shiftKeyRotate: true
+    });
+
+    map.zoomControl.setPosition('bottomright');
+
+    /* ==========================================================================
+       2. Layer Basemap: Esri World Imagery (Satellite) & Alternatif
+       ========================================================================== */
+    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP'
+    });
+
+    const esriLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Labels &copy; Esri'
+    });
+
+    const esriStreets = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri'
+    });
+
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+
+    esriSatellite.addTo(map);
+    esriLabels.addTo(map);
+
+    /* ==========================================================================
+       3. Layer Jaringan Jalan (Standar PerKa BIG: Casing Hitam & Warna CMYK)
+       ========================================================================== */
+    // Layer 1: Casing Hitam (Mask Hitam K: 100 PerKa BIG)
+    const jalanCasingLayer = L.geoJSON(jalanGeluranGeoJSON, {
+      style: function (feature) {
+        const p = feature.properties;
+        let weight = 3.2; // default lingkungan
+        if (p.kelas === 'Kolektor') {
+          weight = 5.6;
+        } else if (p.kelas === 'Lokal') {
+          weight = 4.4;
+        } else if (p.kelas === 'Setapak') {
+          weight = 0;
+        }
+        return {
+          color: '#000000',
+          weight: weight,
+          opacity: 0.95,
+          lineCap: 'round',
+          lineJoin: 'round',
+          interactive: false
+        };
+      }
+    });
+
+    // Layer 2: Isi Warna Jalan (Spesifikasi CMYK PerKa BIG Peta RBI)
+    const jalanFillLayer = L.geoJSON(jalanGeluranGeoJSON, {
+      style: function (feature) {
+        const p = feature.properties;
+        let color = '#FFAD66'; // 1.6 Jalan Lain / Lingkungan: Orange Muda (C:0 M:32 Y:60 K:0)
+        let weight = 1.8;
+        let dashArray = '';
+
+        if (p.kelas === 'Kolektor') {
+          color = '#FFB3D9'; // 1.4 Jalan Kolektor / Utama: Magenta Muda (C:0 M:30 Y:0 K:0)
+          weight = 3.6;
+        } else if (p.kelas === 'Lokal') {
+          color = '#FF8766'; // 1.5 Jalan Lokal: Orange (C:0 M:47 Y:60 K:0)
+          weight = 2.6;
+        } else if (p.kelas === 'Setapak') {
+          color = '#FF99CC'; // 1.7 Jalan Setapak: Magenta (C:0 M:40 Y:0 K:0)
+          weight = 2.0;
+          dashArray = '6, 4';
+        }
+
+        return {
+          color: color,
+          weight: weight,
+          opacity: 1.0,
+          dashArray: dashArray,
+          lineCap: 'round',
+          lineJoin: 'round'
+        };
+      },
+      onEachFeature: function (feature, layer) {
+        const p = feature.properties;
+        let perkaName = 'Jalan Lain / Lingkungan (Orange Muda)';
+        let badgeStyle = 'background: #fed7aa; color: #9a3412;';
+        let bigSpec = 'Orange Muda (C:0 M:32 Y:60 K:0) + Mask Hitam';
+
+        if (p.kelas === 'Kolektor') {
+          perkaName = 'Jalan Kolektor / Utama (Magenta Muda)';
+          badgeStyle = 'background: #fce7f3; color: #9d174d;';
+          bigSpec = 'Magenta Muda (C:0 M:30 Y:0 K:0) + Mask Hitam';
+        } else if (p.kelas === 'Lokal') {
+          perkaName = 'Jalan Lokal (Orange)';
+          badgeStyle = 'background: #ffedd5; color: #c2410c;';
+          bigSpec = 'Orange (C:0 M:47 Y:60 K:0) + Mask Hitam';
+        } else if (p.kelas === 'Setapak') {
+          perkaName = 'Jalan Setapak (Magenta Putus)';
+          badgeStyle = 'background: #fdf2f8; color: #be185d;';
+          bigSpec = 'Magenta (C:0 M:40 Y:0 K:0)';
+        }
+
+        layer.bindTooltip(`<strong>${p.nama}</strong><br><small>${perkaName}</small>`, {
+          sticky: true,
+          className: 'custom-tooltip'
+        });
+
+        layer.on({
+          mouseover: function (e) {
+            e.target.setStyle({ weight: 5.5, color: '#38bdf8' });
+          },
+          mouseout: function (e) {
+            jalanFillLayer.resetStyle(e.target);
+          },
+          click: function (e) {
+            const popupContent = `
+              <div class="popup-header">
+                <span class="popup-badge" style="${badgeStyle}">${p.fungsi}</span>
+                <span style="font-size: 11px; font-weight: 700; color: #64748b;">${p.kode_kugi}</span>
+              </div>
+              <div class="popup-title">${p.nama}</div>
+              <div class="popup-subtitle">Standar Simbol PerKa BIG (Peta Rupabumi Indonesia)</div>
+              <div class="popup-grid">
+                <div class="popup-grid-item">
+                  <span class="grid-label">Spesifikasi BIG</span>
+                  <span class="grid-value" style="font-size: 10.5px;">${bigSpec}</span>
+                </div>
+                <div class="popup-grid-item">
+                  <span class="grid-label">Estimasi Lebar</span>
+                  <span class="grid-value">${p.lebar_m} Meter</span>
+                </div>
+                <div class="popup-grid-item">
+                  <span class="grid-label">Status Ruas</span>
+                  <span class="grid-value">${p.status}</span>
+                </div>
+                <div class="popup-grid-item">
+                  <span class="grid-label">Tipe Konstruksi</span>
+                  <span class="grid-value">${p.perkerasan}</span>
+                </div>
+              </div>
+              <div class="popup-footer-note">
+                <span>Sumber: <strong>PerKa BIG & OpenStreetMap</strong></span>
+                <span>Kelurahan Geluran</span>
+              </div>
+            `;
+            layer.bindPopup(popupContent, { className: 'custom-popup' }).openPopup(e.latlng);
+          }
+        });
+      }
+    });
+
+    // Gabungkan casing hitam dan isi warna ke dalam satu feature group
+    const jalanLayer = L.featureGroup([jalanCasingLayer, jalanFillLayer]).addTo(map);
+
+    /* ==========================================================================
+       5. Layer Jaringan Sungai & Saluran Air
+       ========================================================================== */
+    const sungaiLayer = L.geoJSON(sungaiGeluranGeoJSON, {
+      style: function (feature) {
+        const p = feature.properties;
+        let weight = 3.5;
+        let dashArray = '';
+        if (p.kategori === 'Saluran Irigasi') {
+          weight = 2.5;
+          dashArray = '6, 5';
+        } else if (p.kategori === 'Drainase Primer') {
+          weight = 2;
+        }
+        return {
+          color: p.warna || '#0284c7',
+          weight: weight,
+          opacity: 0.95,
+          dashArray: dashArray,
+          lineCap: 'round'
+        };
+      },
+      onEachFeature: function (feature, layer) {
+        const p = feature.properties;
+        layer.bindTooltip(`<strong>${p.nama}</strong><br><small>${p.kategori}</small>`, {
+          sticky: true,
+          className: 'custom-tooltip'
+        });
+
+        layer.on({
+          mouseover: function (e) {
+            e.target.setStyle({ weight: 6, color: '#67e8f9' });
+          },
+          mouseout: function (e) {
+            sungaiLayer.resetStyle(e.target);
+          },
+          click: function (e) {
+            const popupContent = `
+              <div class="popup-header">
+                <span class="popup-badge badge-blue">${p.kategori}</span>
+                <span style="font-size: 11px; font-weight: 700; color: #64748b;">${p.kode_kugi}</span>
+              </div>
+              <div class="popup-title">${p.nama}</div>
+              <div class="popup-subtitle">Sistem Hidrologi DAS Taman</div>
+              <div class="popup-desc">${p.fungsi}</div>
+              <div class="popup-grid">
+                <div class="popup-grid-item">
+                  <span class="grid-label">Lebar Saluran</span>
+                  <span class="grid-value">${p.lebar_m} Meter</span>
+                </div>
+                <div class="popup-grid-item">
+                  <span class="grid-label">Kedalaman</span>
+                  <span class="grid-value">${p.kedalaman_m} Meter</span>
+                </div>
+                <div class="popup-grid-item">
+                  <span class="grid-label">Tipe Aliran</span>
+                  <span class="grid-value">${p.debit}</span>
+                </div>
+                <div class="popup-grid-item">
+                  <span class="grid-label">Muara Akhir</span>
+                  <span class="grid-value">Kali Mas / Sby</span>
+                </div>
+              </div>
+              <div class="popup-footer-note">
+                <span>Wilayah: <strong>Kelurahan Geluran</strong></span>
+                <span>INA-Geoportal</span>
+              </div>
+            `;
+            layer.bindPopup(popupContent, { className: 'custom-popup' }).openPopup(e.latlng);
+          }
+        });
+      }
+    }).addTo(map);
+
+    /* ==========================================================================
+       5. Layer Batas Administrasi Kelurahan Geluran (Standar PerKa BIG No. 5)
+       ========================================================================== */
+    // Mask Pita Kuning PerKa BIG (C:00 M:00 Y:100 K:00, Ukuran Mask 1 mm)
+    const batasKelurahanMask = L.geoJSON(batasDesaGeluranGeoJSON, {
+      style: {
+        color: '#FFFF00',
+        weight: 4.7,
+        opacity: 0.92,
+        fillColor: '#FFFF00',
+        fillOpacity: 0.04,
+        lineCap: 'round',
+        lineJoin: 'round',
+        interactive: false
+      }
+    });
+
+    // Garis Hitam Dash-Dot-Dot PerKa BIG (Tinta Cetak Hitam K: 100, 0.4 mm)
+    const batasKelurahanLine = L.geoJSON(batasDesaGeluranGeoJSON, {
+      style: {
+        color: '#000000',
+        weight: 1.9,
+        dashArray: '12, 3, 2.5, 3, 2.5, 3', // Strip 3.0, titik 0.5, titik 0.5
+        opacity: 1.0,
+        fill: false,
+        lineCap: 'round',
+        lineJoin: 'round'
+      },
+      onEachFeature: function (feature, layer) {
+        const p = feature.properties;
+        layer.bindTooltip(`<strong>Batas Kelurahan Geluran</strong><br><small>Standar Simbol PerKa BIG (Mask Kuning)</small>`, {
+          sticky: true,
+          className: 'custom-tooltip'
+        });
+
+        layer.on('click', function (e) {
+          const luasFormatted = p.LUASWH ? p.LUASWH.toFixed(2) + ' Ha' : (p.luas_ha ? p.luas_ha + ' Ha' : '142.00 Ha');
+          const popupContent = `
+            <div class="popup-header">
+              <span class="popup-badge" style="background: #fef08a; color: #854d0e;">BATAS KELURAHAN (PERKA BIG)</span>
+              <span style="font-size: 11px; font-weight: 700; color: #64748b;">KODE: ${p.KDEPUM || '35.15.13.1015'}</span>
+            </div>
+            <div class="popup-title">Kelurahan ${p.NAMOBJ || 'Geluran'}</div>
+            <div class="popup-subtitle">Kecamatan ${p.WADMKC || 'Taman'}, Kabupaten ${p.WADMKK || 'Sidoarjo'}</div>
+            <div class="popup-desc">Batas wilayah administrasi desa/kelurahan sesuai standar spesifikasi kartografi PerKa BIG (Garis Hitam Dash-Dot-Dot dengan Mask Pita Kuning C:0 M:0 Y:100 K:0).</div>
+            <div class="popup-grid">
+              <div class="popup-grid-item">
+                <span class="grid-label">Luas Wilayah</span>
+                <span class="grid-value">1,42 km² (${luasFormatted})</span>
+              </div>
+              <div class="popup-grid-item">
+                <span class="grid-label">Struktur RW/RT</span>
+                <span class="grid-value">7 RW & 45 RT</span>
+              </div>
+              <div class="popup-grid-item">
+                <span class="grid-label">Estimasi Populasi</span>
+                <span class="grid-value">± 16.480 Jiwa</span>
+              </div>
+              <div class="popup-grid-item">
+                <span class="grid-label">Standar Simbol</span>
+                <span class="grid-value">PerKa BIG No. 5</span>
+              </div>
+            </div>
+            <div class="popup-footer-note">
+              <span>Batas Resmi: <strong>Pemkab Sidoarjo</strong></span>
+              <span>Kelurahan Geluran</span>
+            </div>
+          `;
+          layer.bindPopup(popupContent, { className: 'custom-popup' }).openPopup(e.latlng);
+        });
+      }
+    });
+
+    const batasDesaLayer = L.featureGroup([batasKelurahanMask, batasKelurahanLine]).addTo(map);
+
+    /* ==========================================================================
+       8. Layer Fasilitas Umum (Fasum) Terverifikasi (37 Titik Lapangan)
+       ========================================================================== */
+    const fasumPendidikanGroup = L.layerGroup();
+    const fasumRestoranGroup = L.layerGroup();
+    const fasumIbadahGroup = L.layerGroup();
+    const fasumLainGroup = L.layerGroup();
+
+    function createFasumIcon(emoji, bgColor) {
+      return L.divIcon({
+        className: 'fasum-div-icon',
+        html: `<div class="fasum-pin" style="background-color: ${bgColor};">${emoji}</div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+        popupAnchor: [0, -16]
+      });
+    }
+
+    fasumGeluranGeoJSON.features.forEach(function (feature) {
+      const p = feature.properties;
+      const coords = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]];
+      const marker = L.marker(coords, {
+        icon: createFasumIcon(p.icon || '📍', p.warna_bg || '#0284c7')
+      });
+
+      let detailGrid = '';
+      if (p.kategori === 'Tempat Ibadah') {
+        detailGrid = `
+          <div class="popup-grid">
+            <div class="popup-grid-item">
+              <span class="grid-label">Agama</span>
+              <span class="grid-value">${p.agama || 'Islam'}</span>
+            </div>
+            <div class="popup-grid-item">
+              <span class="grid-label">Klasifikasi</span>
+              <span class="grid-value">${p.sub_kategori || 'Tempat Ibadah'}</span>
+            </div>
+          </div>
+        `;
+      } else if (p.kategori === 'Pendidikan') {
+        detailGrid = `
+          <div class="popup-grid">
+            <div class="popup-grid-item" style="grid-column: span 2;">
+              <span class="grid-label">Jenjang / Tipe</span>
+              <span class="grid-value">${p.sub_kategori || 'Lembaga Pendidikan'}</span>
+            </div>
+          </div>
+        `;
+      } else if (p.kategori === 'Restoran' || p.kategori === 'Restoran / Kuliner') {
+        detailGrid = `
+          <div class="popup-grid">
+            <div class="popup-grid-item" style="grid-column: span 2;">
+              <span class="grid-label">Tipe Kuliner</span>
+              <span class="grid-value">${p.sub_kategori || 'Restoran / Rumah Makan'}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        detailGrid = `
+          <div class="popup-grid">
+            <div class="popup-grid-item" style="grid-column: span 2;">
+              <span class="grid-label">Jenis Pelayanan</span>
+              <span class="grid-value">${p.sub_kategori || 'Fasilitas Umum'}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      const popupContent = `
+        <div class="popup-header">
+          <span class="popup-badge" style="background: ${p.warna_bg}22; color: ${p.warna_bg}; font-weight: 800;">
+            ${p.sub_kategori}
+          </span>
+          <span style="font-size: 16px;">${p.icon}</span>
+        </div>
+        <div class="popup-title">${p.nama}</div>
+        <div class="popup-subtitle">📍 ${p.alamat}</div>
+        <div class="popup-desc">${p.keterangan}</div>
+        ${detailGrid}
+        <div class="popup-footer-note">
+          <span>Kategori: <strong>${p.kategori}</strong></span>
+          <span>Desa Geluran</span>
+        </div>
+      `;
+
+      marker.bindPopup(popupContent, { className: 'custom-popup' });
+      marker.bindTooltip(`<strong>${p.icon} ${p.nama}</strong><br><small>${p.sub_kategori}</small>`, {
+        className: 'custom-tooltip',
+        offset: [0, -14]
+      });
+
+      if (p.kategori === 'Tempat Ibadah') {
+        fasumIbadahGroup.addLayer(marker);
+      } else if (p.kategori === 'Pendidikan') {
+        fasumPendidikanGroup.addLayer(marker);
+      } else if (p.kategori === 'Restoran' || p.kategori === 'Restoran / Kuliner') {
+        fasumRestoranGroup.addLayer(marker);
+      } else {
+        fasumLainGroup.addLayer(marker);
+      }
+    });
+
+    // Tampilkan semua fasum secara default
+    fasumPendidikanGroup.addTo(map);
+    fasumRestoranGroup.addTo(map);
+    fasumIbadahGroup.addTo(map);
+    fasumLainGroup.addTo(map);
+
+    /* ==========================================================================
+       9. Kontrol Pemilih Layer (DI KANAN ATAS - SEKARANG BERSIH TANPA TUMPUKAN)
+       ========================================================================== */
+    const baseMaps = {
+      "🛰️ Esri Satellite": esriSatellite,
+      "🗺️ Esri Streets": esriStreets,
+      "🌐 OpenStreetMap": osmLayer
+    };
+
+    const overlayMaps = {
+      "🏘️ Batas Kelurahan (PerKa BIG)": batasDesaLayer,
+      "🛣️ Jaringan Jalan (PerKa BIG)": jalanLayer,
+      "🌊 Jaringan Sungai & Saluran Air": sungaiLayer,
+      "🏫 Pendidikan (8 Titik)": fasumPendidikanGroup,
+      "🍽️ Restoran & Kuliner (13 Titik)": fasumRestoranGroup,
+      "🕌 Tempat Ibadah (8 Titik)": fasumIbadahGroup,
+      "🏢 Fasum Lain (8 Titik)": fasumLainGroup,
+      "🏷️ Batas & Label Kota Esri": esriLabels
+    };
+
+    L.control.layers(baseMaps, overlayMaps, {
+      position: 'topright',
+      collapsed: true
+    }).addTo(map);
+
+    /* ==========================================================================
+       KOMPAS / ARAH MATA ANGIN (WIDGET ROTASI 360° & RESET UTARA)
+       ========================================================================== */
+    const CompassControl = L.Control.extend({
+      options: {
+        position: 'topright'
+      },
+      onAdd: function (map) {
+        const container = L.DomUtil.create('div', 'compass-control-wrap');
+        container.innerHTML = `
+          <div class="compass-widget" id="compassWidget">
+            <div class="compass-dial" id="compassDial" onclick="resetNorth()" title="Kompas Arah Mata Angin (Klik untuk menghadap ke Utara)">
+              <svg class="compass-svg" viewBox="0 0 100 100">
+                <!-- Piringan Luar -->
+                <circle cx="50" cy="50" r="47" class="compass-ring-outer" />
+                <circle cx="50" cy="50" r="41" class="compass-ring-inner" />
+                
+                <!-- Marka Sudut -->
+                <line x1="50" y1="5" x2="50" y2="12" stroke="#dc2626" stroke-width="2.5" />
+                <line x1="95" y1="50" x2="88" y2="50" stroke="#94a3b8" stroke-width="1.8" />
+                <line x1="50" y1="95" x2="50" y2="88" stroke="#94a3b8" stroke-width="1.8" />
+                <line x1="5" y1="50" x2="12" y2="50" stroke="#94a3b8" stroke-width="1.8" />
+                
+                <!-- Huruf 4 Arah Mata Angin -->
+                <text x="50" y="21" class="compass-text compass-text-u">U</text>
+                <text x="83" y="54" class="compass-text">T</text>
+                <text x="50" y="86" class="compass-text">S</text>
+                <text x="17" y="54" class="compass-text">B</text>
+                
+                <!-- Jarum Kompas Berputar (Menunjuk ke Arah Utara Geografis) -->
+                <g id="compassNeedle" class="compass-needle-group">
+                  <!-- Jarum Utara (Merah Menyala 3D) -->
+                  <polygon points="50,14 43,50 50,44" fill="#dc2626" />
+                  <polygon points="50,14 57,50 50,44" fill="#ef4444" />
+                  <!-- Jarum Selatan (Silver Slate 3D) -->
+                  <polygon points="50,86 43,50 50,44" fill="#64748b" />
+                  <polygon points="50,86 57,50 50,44" fill="#94a3b8" />
+                  <!-- Pin Tengah -->
+                  <circle cx="50" cy="50" r="5" fill="#0f172a" stroke="#ffffff" stroke-width="2" />
+                  <circle cx="50" cy="50" r="2" fill="#38bdf8" />
+                </g>
+              </svg>
+            </div>
+            
+            <div class="compass-toolbar">
+              <button class="compass-rot-btn" onclick="rotateMapBy(-15)" title="Putar Kiri (-15°)">↺</button>
+              <div class="compass-heading-badge" id="compassHeadingBadge" onclick="resetNorth()" title="Klik untuk Reset ke Utara">0° U</div>
+              <button class="compass-rot-btn" onclick="rotateMapBy(15)" title="Putar Kanan (+15°)">↻</button>
+            </div>
+          </div>
+        `;
+
+        L.DomEvent.disableClickPropagation(container);
+        L.DomEvent.disableScrollPropagation(container);
+        return container;
+      }
+    });
+
+    map.addControl(new CompassControl());
+
+    /* ==========================================================================
+       10. Skala Peta (Scale Bar)
+       ========================================================================== */
+    L.control.scale({
+      metric: true,
+      imperial: false,
+      position: 'bottomleft'
+    }).addTo(map);
+
+    /* ==========================================================================
+       11. Filter Fasum Cepat Lewat Header
+       ========================================================================== */
+    function filterFasum(category) {
+      document.querySelectorAll('.filter-pill').forEach(btn => btn.classList.remove('active'));
+      if (window.event && window.event.target) window.event.target.classList.add('active');
+
+      if (category === 'semua') {
+        map.addLayer(fasumPendidikanGroup);
+        map.addLayer(fasumRestoranGroup);
+        map.addLayer(fasumIbadahGroup);
+        map.addLayer(fasumLainGroup);
+      } else {
+        map.removeLayer(fasumPendidikanGroup);
+        map.removeLayer(fasumRestoranGroup);
+        map.removeLayer(fasumIbadahGroup);
+        map.removeLayer(fasumLainGroup);
+
+        if (category === 'Pendidikan') map.addLayer(fasumPendidikanGroup);
+        if (category === 'Restoran' || category === 'Restoran / Kuliner') map.addLayer(fasumRestoranGroup);
+        if (category === 'Tempat Ibadah') map.addLayer(fasumIbadahGroup);
+        if (category === 'Fasum Lain' || category === 'Pemerintahan') map.addLayer(fasumLainGroup);
+      }
+    }
+
+    function zoomToGeluran() {
+      map.flyToBounds(batasDesaLayer.getBounds(), {
+        duration: 1.5,
+        easeLinearity: 0.25,
+        padding: [30, 30]
+      });
+    }
+
+    /* ==========================================================================
+       13. Toggle Tampilan Legenda (Bisa Diciutkan / Dilebarkan)
+       ========================================================================== */
+    let legendExpanded = true;
+    function toggleLegend() {
+      const content = document.getElementById('legendContent');
+      const footer = document.getElementById('legendFooter');
+      const btn = document.getElementById('legendToggleBtn');
+      legendExpanded = !legendExpanded;
+      if (legendExpanded) {
+        content.style.display = 'flex';
+        footer.style.display = 'block';
+        btn.textContent = '▼';
+      } else {
+        content.style.display = 'none';
+        footer.style.display = 'none';
+        btn.textContent = '▲';
+      }
+    }
+
+    /* ==========================================================================
+       14. Pelacak Koordinat Kursor Realtime & Rotasi
+       ========================================================================== */
+    const latElement = document.getElementById('latVal');
+    const lngElement = document.getElementById('lngVal');
+    const zoomElement = document.getElementById('zoomVal');
+    const bearingElement = document.getElementById('bearingVal');
+
+    map.on('mousemove', function (e) {
+      latElement.textContent = e.latlng.lat.toFixed(4);
+      lngElement.textContent = e.latlng.lng.toFixed(4);
+    });
+
+    map.on('zoomend', function () {
+      zoomElement.textContent = map.getZoom();
+    });
+
+    /* ==========================================================================
+       15. Logika Rotasi Peta, Sinkronisasi Jarum Kompas, & Reset Utara
+       ========================================================================== */
+    function updateCompass() {
+      if (!map || typeof map.getBearing !== 'function') return;
+      const bearing = map.getBearing() || 0;
+      const needle = document.getElementById('compassNeedle');
+      const badge = document.getElementById('compassHeadingBadge');
+      const widget = document.getElementById('compassWidget');
+
+      // Jarum berputar berkebalikan (-bearing) sehingga ujung MERAH selalu menunjuk ke arah UTARA sejati
+      if (needle) {
+        needle.setAttribute('transform', `rotate(${-bearing}, 50, 50)`);
+        needle.style.transform = `rotate(${-bearing}deg)`;
+      }
+
+      let norm = Math.round(((bearing % 360) + 360) % 360);
+      let cardinal = 'U';
+      if (norm >= 23 && norm < 68) cardinal = 'TL';
+      else if (norm >= 68 && norm < 113) cardinal = 'T';
+      else if (norm >= 113 && norm < 158) cardinal = 'TG';
+      else if (norm >= 158 && norm < 203) cardinal = 'S';
+      else if (norm >= 203 && norm < 248) cardinal = 'BD';
+      else if (norm >= 248 && norm < 293) cardinal = 'B';
+      else if (norm >= 293 && norm < 338) cardinal = 'BL';
+
+      if (badge) {
+        badge.textContent = `${norm}° ${cardinal}`;
+      }
+
+      if (bearingElement) {
+        bearingElement.textContent = `${norm}° (${cardinal})`;
+      }
+
+      if (widget) {
+        if (Math.abs(bearing % 360) > 0.5) {
+          widget.classList.add('is-rotated');
+        } else {
+          widget.classList.remove('is-rotated');
+        }
+      }
+    }
+
+    map.on('rotate', updateCompass);
+
+    // Animasi Halus Mengembalikan Peta Menghadap ke Utara (North-Up)
+    function resetNorth() {
+      if (!map || typeof map.setBearing !== 'function') return;
+      const startBearing = map.getBearing() || 0;
+      if (Math.abs(startBearing % 360) < 0.2) return;
+
+      // Cari rute rotasi terpendek menuju 0 derajat
+      let diff = -startBearing;
+      while (diff < -180) diff += 360;
+      while (diff > 180) diff -= 360;
+
+      const duration = 400; // ms
+      const startTime = performance.now();
+
+      function step(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = 1 - Math.pow(1 - progress, 3); // Cubic ease out
+        map.setBearing(startBearing + (diff * ease));
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        } else {
+          map.setBearing(0);
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    // Rotasi Cepat dengan Tombol Step (±15°)
+    function rotateMapBy(degrees) {
+      if (!map || typeof map.setBearing !== 'function') return;
+      const current = map.getBearing() || 0;
+      map.setBearing(current + degrees);
+    }
+
+    /* ==========================================================================
+       16. Rotasi Interaktif: Klik Kanan + Drag & Alt + Drag (Seperti di Google Maps)
+       ========================================================================== */
+    let isRotatingMap = false;
+    let rotateStartX = 0;
+    let rotateStartBearing = 0;
+
+    const mapContainer = map.getContainer();
+
+    // Mencegah menu klik kanan browser default pada peta agar bisa bebas berputar
+    mapContainer.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+    });
+
+    mapContainer.addEventListener('mousedown', function (e) {
+      // Abaikan jika klik terjadi di dalam kontrol/widget kompas
+      if (e.target.closest('.compass-control-wrap') || e.target.closest('.leaflet-control')) return;
+
+      // Tombol 2 = Klik Kanan, Alt + Klik Kiri (Tombol 0), atau Ctrl + Klik Kiri (seperti Google Maps)
+      if (e.button === 2 || (e.altKey && e.button === 0) || (e.ctrlKey && e.button === 0)) {
+        isRotatingMap = true;
+        rotateStartX = e.clientX;
+        rotateStartBearing = map.getBearing() || 0;
+        map.dragging.disable();
+        document.body.style.cursor = 'crosshair';
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener('mousemove', function (e) {
+      if (!isRotatingMap) return;
+      const deltaX = e.clientX - rotateStartX;
+      // Sensitivitas rotasi yang halus: 0.45 derajat per piksel geser
+      map.setBearing(rotateStartBearing + (deltaX * 0.45));
+    });
+
+    window.addEventListener('mouseup', function (e) {
+      if (isRotatingMap) {
+        isRotatingMap = false;
+        map.dragging.enable();
+        document.body.style.cursor = '';
+      }
+    });
+  </script>
+</body>
+
+</html>
